@@ -211,7 +211,7 @@ fn build_python(sh: &Shell) -> Result<()> {
     build_guest(
         sh,
         "isola-python-runtime",
-        Some(("PYO3_CROSS_PYTHON_VERSION", "3.14")),
+        Some(("PYO3_CROSS_PYTHON_VERSION", "3.15")),
         python_libraries,
         Path::new("target/python.wasm"),
         8_388_608,
@@ -294,14 +294,14 @@ fn python_libraries(wasi_deps_dir: &Path, runtime: &Path) -> Result<Vec<Componen
         ComponentLibrary::new("libc++.so", lib_dir.join("libc++.so"), false, None),
         ComponentLibrary::new("libc++abi.so", lib_dir.join("libc++abi.so"), false, None),
         ComponentLibrary::new(
-            "libpython3.14.so",
-            lib_dir.join("libpython3.14.so"),
+            "libpython3.15.so",
+            lib_dir.join("libpython3.15.so"),
             false,
             None,
         ),
     ];
 
-    let site_packages = lib_dir.join("python3.14/site-packages");
+    let site_packages = lib_dir.join("python3.15/site-packages");
     let pattern = site_packages.join("**/*.so");
     let pattern = pattern
         .to_str()

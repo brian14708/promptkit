@@ -106,7 +106,7 @@ let
     // {
       buildPhaseCargoCommand = ''
         cargo build --offline -p xtask
-        PYO3_CROSS_PYTHON_VERSION=3.14 \
+        PYO3_CROSS_PYTHON_VERSION=3.15 \
           CARGO_TARGET_WASM32_WASIP2_LINKER="${wasipkgs.sdk}/bin/clang" \
           RUSTFLAGS="--cfg pyo3_disable_reference_pool -C relocation-model=pic -C link-args=-Wl,--skip-wit-component -C link-arg=-shared -C link-args=-Wl,--allow-undefined -C link-self-contained=n -Lnative=${linkerInputs}/lib" \
           cargo build --offline -Z build-std=std,panic_abort --release \

@@ -38,7 +38,7 @@ stdenv.mkDerivation {
   configurePhase = ''
     runHook preConfigure
 
-    export PYTHONPATH=${python}/lib/python3.14
+    export PYTHONPATH=${python}/lib/python3.15
     export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__wasi_wasm32-wasi
     export _PYTHON_HOST_PLATFORM=wasi-wasm32
 
@@ -47,8 +47,8 @@ stdenv.mkDerivation {
     export RANLIB="${sdk}/bin/llvm-ranlib"
     export LD="${sdk}/bin/wasm-ld"
 
-    export CFLAGS="-fPIC -I${python}/include/python3.14"
-    export LDFLAGS="-L${python}/lib -lpython3.14 -ldl -lz"
+    export CFLAGS="-fPIC -I${python}/include/python3.15"
+    export LDFLAGS="-L${python}/lib -lpython3.15 -ldl -lz"
 
     runHook postConfigure
   '';

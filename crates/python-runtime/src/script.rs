@@ -52,12 +52,29 @@ impl Scope {
                     }
                     #[cfg(target_os = "wasi")]
                     {
-                        PyModule::import(py, intern!(py, "sandbox._httpx2"))
-                            .expect("failed to import HTTPX2 sandbox transport")
-                            .getattr(intern!(py, "install"))
-                            .expect("failed to find HTTPX2 sandbox transport installer")
-                            .call0()
-                            .expect("failed to install HTTPX2 sandbox transport");
+                        // CPython 3.15 freezes the `encodings` package; its frozen
+                        // __path__ points at an on-disk stdlib directory that does
+                        // not exist in this zip-only layout, breaking every
+                        // non-builtin codec (zipfile itself needs cp437 to read a
+                        // central directory, e.g. for importlib.metadata lookups
+                        // against bundle.zip). Repoint __path__ at the stdlib zip
+                        // before importing the HTTPX2 sandbox transport.
+                        py.run(
+                            c"
+import encodings, sys, zipimport
+encodings.__path__[:] = [
+    p + '/encodings'
+    for p in sys.path
+    if p.endswith('.zip') and zipimport.zipimporter(p).find_spec('encodings')
+]
+
+import sandbox._httpx2
+sandbox._httpx2.install()
+",
+                            None,
+                            None,
+                        )
+                        .expect("failed to initialize sandbox HTTPX2 transport");
                     }
                     match (
                         sys.getattr(intern!(py, "stdout")).ok(),

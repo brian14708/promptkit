@@ -54,11 +54,11 @@ stdenv.mkDerivation {
     cross_prefix = wasi_sysroot / 'usr' / 'local'
     wasi_target = 'wasm32-wasip2'
     wasi_args = ['--sysroot=' + wasi_sysroot, '--target=' + wasi_target, '-D__EMSCRIPTEN__=1', '-DNPY_NO_SIGNAL']
-    wasi_link_args = ['-L${python}/lib', '-L$PWD', '-lpython3.14']
+    wasi_link_args = ['-L${python}/lib', '-L$PWD', '-lpython3.15']
 
     [binaries]
-    c = [wasi_sdk_path + '/bin/clang', '-I${python}/include/python3.14']
-    cpp = [wasi_sdk_path + '/bin/clang++', '-I${python}/include/python3.14', '-fno-exceptions']
+    c = [wasi_sdk_path + '/bin/clang', '-I${python}/include/python3.15']
+    cpp = [wasi_sdk_path + '/bin/clang++', '-I${python}/include/python3.15', '-fno-exceptions']
     asm = wasi_sdk_path + '/bin/clang'
     ar = wasi_sdk_path + '/bin/llvm-ar'
     c_ld = wasi_sdk_path + '/bin/wasm-ld'
@@ -85,13 +85,13 @@ stdenv.mkDerivation {
     longdouble_format = '$wasi_longdouble_format'
     EOF
 
-    export PYTHONPATH=${python}/lib/python3.14
+    export PYTHONPATH=${python}/lib/python3.15
     export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__wasi_wasm32-wasi
 
     touch python-stub.c
     ${sdk}/bin/clang --sysroot=${sdk}/share/wasi-sysroot \
       -c python-stub.c -o python-stub.o
-    ${sdk}/bin/llvm-ar rcs libpython3.14.a python-stub.o
+    ${sdk}/bin/llvm-ar rcs libpython3.15.a python-stub.o
 
     python3 vendored-meson/meson/meson.py setup \
       --prefix $out \

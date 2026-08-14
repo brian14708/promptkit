@@ -1,7 +1,7 @@
 [project]
 name = "isola-python-runtime"
 version = "0.5.0"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = [
     "pydantic>=2.11.1",
     "pyyaml>=6.0.2",
@@ -19,7 +19,7 @@ only-include = ["python/sandbox"]
 sources = ["python"]
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py315"
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -42,7 +42,7 @@ preview = true
 [tool.mypy]
 files = ["crates/python-runtime/python"]
 strict = true
-python_version = "3.14"
+python_version = "3.15"
 mypy_path = "crates/python-runtime/python/typings"
 disable_error_code = [
     "decorated-any",

@@ -79,7 +79,7 @@ stdenv.mkDerivation rec {
   configurePhase = ''
     runHook preConfigure
 
-    export PYTHONPATH=${python}/lib/python3.14
+    export PYTHONPATH=${python}/lib/python3.15
     export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__wasi_wasm32-wasi
     export _PYTHON_HOST_PLATFORM=wasi-wasm32
     export PYO3_CROSS_LIB_DIR=${python}/lib
@@ -103,7 +103,7 @@ stdenv.mkDerivation rec {
       -Z build-std=std,panic_abort \
       --release \
       --target wasm32-wasip2 \
-      -i python3.14 \
+      -i python3.15 \
       --out dist
 
     runHook postBuild
@@ -112,10 +112,10 @@ stdenv.mkDerivation rec {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/lib/python3.14/site-packages
+    mkdir -p $out/lib/python3.15/site-packages
     python3 -m zipfile -e \
-      dist/pydantic_core-${version}-cp314-cp314-*.whl \
-      $out/lib/python3.14/site-packages
+      dist/pydantic_core-${version}-cp315-cp315-*.whl \
+      $out/lib/python3.15/site-packages
 
     runHook postInstall
   '';
