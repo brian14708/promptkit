@@ -47,10 +47,10 @@ async def main() -> None:
 
     async with template.create(http=True) as sandbox:
         await sandbox.load_script(
-            "import httpx\n"
+            "import httpx2\n"
             "\n"
             "async def main(url):\n"
-            "    async with httpx.AsyncClient() as client:\n"
+            "    async with httpx2.AsyncClient() as client:\n"
             "        resp = await client.get(url)\n"
             "        return resp.json()\n"
         )

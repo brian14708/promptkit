@@ -61,10 +61,10 @@ async fn integration_python_http_client_roundtrip() -> Result<()> {
         .context("failed to instantiate sandbox")?;
 
     let script = r#"
-import httpx
+import httpx2
 
 async def main(url):
-    async with httpx.AsyncClient() as client:
+    async with httpx2.AsyncClient() as client:
         resp = await client.post(url, json={"hello": "world"})
         return resp.text
 "#;
@@ -134,13 +134,13 @@ async fn integration_python_http_large_response_is_chunked_and_limited() -> Resu
         .context("failed to instantiate sandbox")?;
 
     let script = r#"
-import httpx
+import httpx2
 
 def main(url):
-    body = httpx.get(f"{url}/large").content
+    body = httpx2.get(f"{url}/large").content
 
     try:
-        httpx.get(f"{url}/oversized")
+        httpx2.get(f"{url}/oversized")
         oversized_error = "expected response-size error"
     except Exception as e:
         oversized_error = str(e)
@@ -206,10 +206,10 @@ async fn integration_python_http_streaming_response() -> Result<()> {
         .context("failed to instantiate sandbox")?;
 
     let script = r#"
-import httpx
+import httpx2
 
 def main(url):
-    with httpx.stream("GET", url) as resp:
+    with httpx2.stream("GET", url) as resp:
         return b"".join(resp.iter_bytes(chunk_size=4)).decode()
 "#;
     sandbox
@@ -267,11 +267,11 @@ async fn integration_python_http_status_errors_surface() -> Result<()> {
         .context("failed to instantiate sandbox")?;
 
     let script = r#"
-import httpx
+import httpx2
 
 def main(url):
-    first_status = httpx.get(f"{url}/status/503").status_code
-    second_status = httpx.post(
+    first_status = httpx2.get(f"{url}/status/503").status_code
+    second_status = httpx2.post(
         f"{url}/status/500", json={"value": "test"}
     ).status_code
 
@@ -334,10 +334,10 @@ async fn integration_python_http_multipart_files() -> Result<()> {
         .context("failed to instantiate sandbox")?;
 
     let script = r#"
-import httpx
+import httpx2
 
 def main(url):
-    resp = httpx.post(
+    resp = httpx2.post(
         f"{url}/multipart",
         files={
             "file": ("file", b"test"),
@@ -398,10 +398,10 @@ async fn integration_python_http_buffered_response_can_be_read_twice() -> Result
         .context("failed to instantiate sandbox")?;
 
     let script = r#"
-import httpx
+import httpx2
 
 def main(url):
-    resp = httpx.get(f"{url}/read-twice")
+    resp = httpx2.get(f"{url}/read-twice")
     return (resp.json(), resp.json())
 "#;
     sandbox
@@ -457,11 +457,11 @@ async fn integration_python_http_timeout_is_enforced() -> Result<()> {
         .context("failed to instantiate sandbox")?;
 
     let script = r#"
-import httpx
+import httpx2
 
 def main(url):
     try:
-        return httpx.get(f"{url}/slow", timeout=0.05).text
+        return httpx2.get(f"{url}/slow", timeout=0.05).text
     except Exception as e:
         return str(e)
 "#;

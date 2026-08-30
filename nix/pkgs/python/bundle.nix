@@ -24,12 +24,12 @@ let
     ))
     ++ (builtins.map toString [
       (fetchPypi {
-        pname = "httpx";
-        version = "0.28.1";
+        pname = "httpx2";
+        version = "2.12.0";
         format = "wheel";
         python = "py3";
         dist = "py3";
-        hash = "sha256-2Qn8zMEQ+Mf6+BTKgqmk2Ba8Wm2/6iXWWR1phbi6Wa0=";
+        hash = "sha256-zItu7LhmHBRrj4mmDpdFbuCG6Rp4TtMaxFDDqeYT3TY=";
       })
       (fetchPypi {
         pname = "duron";

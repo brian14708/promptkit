@@ -5,8 +5,6 @@ repo_name: "brian14708/isola"
 nav:
   - Home: index.md
   - Quick Start: quick-start.md
-  - Use Cases:
-      - Code Mode: codemode-use-case.md
   - Host APIs:
       - Python SDK: python-api.md
       - Node.js SDK: nodejs-api.md

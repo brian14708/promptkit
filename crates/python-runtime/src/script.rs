@@ -52,12 +52,12 @@ impl Scope {
                     }
                     #[cfg(target_os = "wasi")]
                     {
-                        PyModule::import(py, intern!(py, "sandbox._httpx"))
-                            .expect("failed to import HTTPX sandbox transport")
+                        PyModule::import(py, intern!(py, "sandbox._httpx2"))
+                            .expect("failed to import HTTPX2 sandbox transport")
                             .getattr(intern!(py, "install"))
-                            .expect("failed to find HTTPX sandbox transport installer")
+                            .expect("failed to find HTTPX2 sandbox transport installer")
                             .call0()
-                            .expect("failed to install HTTPX sandbox transport");
+                            .expect("failed to install HTTPX2 sandbox transport");
                     }
                     match (
                         sys.getattr(intern!(py, "stdout")).ok(),

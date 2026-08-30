@@ -183,9 +183,9 @@ TEST_CASE("HTTP mock handler") {
 
   REQUIRE(isola_sandbox_load_script(
               sandbox,
-              "import httpx\n"
+              "import httpx2\n"
               "def main():\n"
-              "    resp = httpx.get('http://mock.test/hello')\n"
+              "    resp = httpx2.get('http://mock.test/hello')\n"
               "    return {'status': resp.status_code, 'body': resp.text}\n",
               5000) == 0);
 

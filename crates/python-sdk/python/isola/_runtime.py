@@ -13,7 +13,7 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-import httpx
+import httpx2
 
 from isola._core import TemplateConfig
 
@@ -79,7 +79,7 @@ def _build_config(runtime: RuntimeName, cache_dir: Path) -> TemplateConfig:
 
 async def _fetch_expected_digest(version: str, tarball_name: str) -> str:
     url = _RELEASE_API.format(version=_version_tag(version))
-    async with httpx.AsyncClient() as client:
+    async with httpx2.AsyncClient() as client:
         resp = await client.get(url)
         resp.raise_for_status()
         release = resp.json()
@@ -107,7 +107,7 @@ async def _download_tarball(
     chunks: list[bytes] = []
 
     async with (
-        httpx.AsyncClient(follow_redirects=True) as client,
+        httpx2.AsyncClient(follow_redirects=True) as client,
         client.stream("GET", download_url) as resp,
     ):
         resp.raise_for_status()

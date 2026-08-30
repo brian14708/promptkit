@@ -107,6 +107,13 @@ if __name__ == "__main__":
                             archive_source,
                             compiled_path,
                         )
+                    # Packages like httpx2 resolve __version__ via
+                    # importlib.metadata at import time, so keep each wheel's
+                    # METADATA alongside the bytecode.
+                    for dist_info in root.glob("*.dist-info"):
+                        metadata = dist_info / "METADATA"
+                        if metadata.is_file():
+                            archive.write(metadata, f"{dist_info.name}/METADATA")
             elif path.is_dir():
                 for source, archive_source in top_level_python_sources(path):
                     write_bytecode(

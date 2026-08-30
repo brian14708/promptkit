@@ -114,7 +114,7 @@ use `await template.instantiate(**sandbox_config)` instead.
 - `mounts`: `list[MountConfig]`
 - `env`: `dict[str, str]`
 - `hostcalls`: `dict[str, async callable]` used for guest `sandbox.asyncio.hostcall(...)`
-- `http`: `None` to disable guest HTTP, `True` to use the built-in `httpx`
+- `http`: `None` to disable guest HTTP, `True` to use the built-in `httpx2`
   bridge, or an async callable for a custom outbound HTTP policy
 
 ### `Sandbox`
@@ -273,7 +273,7 @@ Environment variables can be supplied in both template and sandbox config via `e
 ## HTTP Bridge
 
 Outbound guest HTTP is disabled unless you pass `http=` when creating
-the sandbox. Use `http=True` to enable the built-in `httpx` pass-through
+the sandbox. Use `http=True` to enable the built-in `httpx2` pass-through
 bridge, or provide your own async handler to enforce a custom HTTP policy.
 
 The guest-side request APIs used inside the sandbox are documented in

@@ -20,10 +20,10 @@ isola = pytest.importorskip("isola")
 runtime_module = pytest.importorskip("isola._runtime")
 
 _FETCH_SCRIPT = (
-    "import httpx\n"
+    "import httpx2\n"
     "\n"
     "def main(url):\n"
-    "\tresp = httpx.get(url)\n"
+    "\tresp = httpx2.get(url)\n"
     "\treturn [resp.status_code, resp.headers.get('x-test'), resp.text]\n"
 )
 

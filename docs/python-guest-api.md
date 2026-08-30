@@ -78,15 +78,16 @@ def main(user_id):
 ### `await subscribe(pollable) -> object`
 
 Low-level helper for awaiting native guest pollables. Most guest code should use
-`hostcall(...)` or `httpx.AsyncClient` instead of calling `subscribe(...)`
+`hostcall(...)` or `httpx2.AsyncClient` instead of calling `subscribe(...)`
 directly.
 
-## HTTPX
+## HTTPX2
 
-HTTPX's request and response API is available in the guest:
+[HTTPX2](https://httpx2.pydantic.dev/)'s request and response API is available
+in the guest:
 
 ```python
-import httpx
+import httpx2
 ```
 
 Guest HTTP is only available when the host enables outbound requests with
@@ -94,20 +95,20 @@ Guest HTTP is only available when the host enables outbound requests with
 See [Python Host API](python-api.md) and
 [Node.js Host API](nodejs-api.md).
 
-Isola patches HTTPX's default sync and async transports so requests use the
-sandbox HTTP hostcall. HTTPX still handles request construction, query
+Isola patches HTTPX2's default sync and async transports so requests use the
+sandbox HTTP hostcall. HTTPX2 still handles request construction, query
 parameters, JSON and form encoding, multipart uploads, response decoding,
 redirects, cookies, and status errors using its normal API. Both top-level
-helpers such as `httpx.get(...)` and reusable clients work.
+helpers such as `httpx2.get(...)` and reusable clients work.
 
 ### Synchronous usage
 
 ```python
-import httpx
+import httpx2
 
 
 def main(url):
-    resp = httpx.get(url, params={"q": "hello"})
+    resp = httpx2.get(url, params={"q": "hello"})
     return {
         "status": resp.status_code,
         "headers": dict(resp.headers),
@@ -115,23 +116,23 @@ def main(url):
     }
 ```
 
-Use `httpx.Client` for cookies, redirects, shared headers, and multiple
-requests. Streaming responses are available through `httpx.stream(...)` or
+Use `httpx2.Client` for cookies, redirects, shared headers, and multiple
+requests. Streaming responses are available through `httpx2.stream(...)` or
 `Client.stream(...)`.
 
 ### Asynchronous usage
 
 ```python
-import httpx
+import httpx2
 
 
 async def main(url):
-    async with httpx.AsyncClient() as client:
+    async with httpx2.AsyncClient() as client:
         resp = await client.get(url)
         return resp.text
 ```
 
-The host owns the network connection, so transport-level HTTPX options such as
+The host owns the network connection, so transport-level HTTPX2 options such as
 TLS verification, certificates, connection limits, retries, HTTP version
 selection, Unix sockets, and socket options do not apply. A request timeout is
 forwarded to the host bridge as the exchange timeout.

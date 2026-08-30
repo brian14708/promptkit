@@ -17,4 +17,3 @@ sandbox.
   [Node.js Host API](nodejs-api.md)
 - Writing guest code: [Python Guest API](python-guest-api.md) or
   [JavaScript Guest API](javascript-guest-api.md)
-- Building an LLM code-execution tool: [Code Mode](codemode-use-case.md)
