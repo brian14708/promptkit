@@ -5,14 +5,22 @@
   wasipkgs,
 }:
 let
-  inherit (wasipkgs) wasi-optimize-hook zlib sdk;
+  inherit (wasipkgs)
+    wasi-optimize-hook
+    zlib
+    zstd
+    sdk
+    ;
 in
 stdenv.mkDerivation rec {
   pname = "${python314.pname}-wasi";
   inherit (python314) version src;
   dontStrip = true;
 
-  buildInputs = [ zlib ];
+  buildInputs = [
+    zlib
+    zstd
+  ];
 
   passthru = {
     host = python314;
@@ -93,6 +101,7 @@ stdenv.mkDerivation rec {
       $out/python-stub.c \
       -Wl,--whole-archive $out/lib/libpython3.14.a -Wl,--no-whole-archive \
       $(pkg-config --libs zlib) \
+      $(pkg-config --libs libzstd) \
       $PWD/Modules/_hacl/libHacl_Hash_SHA1.a \
       $PWD/Modules/_hacl/libHacl_Hash_SHA2.a \
       $PWD/Modules/_hacl/libHacl_Hash_SHA3.a \

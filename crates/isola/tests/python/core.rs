@@ -946,3 +946,45 @@ async fn integration_python_writable_directory_mapping_filesystem_roundtrip() ->
 
     Ok(())
 }
+
+const ZSTD_SCRIPT: &str = r#"
+def main():
+    from compression import zstd
+
+    payload = b"isola-zstd-roundtrip " * 256
+    blob = zstd.compress(payload, level=10)
+    assert zstd.decompress(blob) == payload, "zstd roundtrip mismatch"
+    return len(blob) < len(payload)
+"#;
+
+#[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "integration tests run in release mode")]
+async fn integration_python_stdlib_zstd_roundtrip() -> Result<()> {
+    let Some(module) = build_module().await? else {
+        return Ok(());
+    };
+    let mut sandbox = module
+        .instantiate(TestHost::default(), SandboxOptions::default())
+        .await
+        .context("failed to instantiate sandbox")?;
+
+    sandbox
+        .eval_script(ZSTD_SCRIPT, OutputTarget::discard())
+        .await
+        .context("failed to evaluate zstd script")?;
+
+    let output = call_with_timeout(&mut sandbox, "main", [], Duration::from_secs(5))
+        .await
+        .context("failed to call zstd function")?;
+
+    assert!(output.items.is_empty(), "expected no partial outputs");
+    let compressed_smaller: bool = output
+        .result
+        .as_ref()
+        .context("expected exactly one end output")?
+        .to_serde()
+        .context("failed to decode zstd result")?;
+    assert!(compressed_smaller, "zstd output was not smaller than input");
+
+    Ok(())
+}
