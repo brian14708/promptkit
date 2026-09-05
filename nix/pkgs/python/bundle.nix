@@ -99,7 +99,9 @@ stdenv.mkDerivation {
       find $out/ -type d -name "__pycache__" -exec rm -rf {} +
       find $out/ -type d -name "*-info" -exec rm -rf {} +
 
-      ${python.host}/bin/python3 -m compileall -q -j "$NIX_BUILD_CORES" $out/
+      # compileall uses all available cores when passed 0; this also handles
+      # builders that do not export NIX_BUILD_CORES.
+      ${python.host}/bin/python3 -m compileall -q -j "''${NIX_BUILD_CORES:-0}" $out/
       find $out/ -type f -exec nuke-refs '{}' +
 
       runHook postInstall

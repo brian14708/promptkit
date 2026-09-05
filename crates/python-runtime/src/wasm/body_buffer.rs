@@ -9,7 +9,7 @@ use pyo3::{
 use crate::serde::json_to_python;
 
 pub trait BodyBuffer: Default {
-    fn write(&mut self, data: Vec<u8>);
+    fn write(&mut self, data: &[u8]);
     fn decode<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>>;
     fn decode_all<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>>;
     fn close(&mut self);
@@ -43,7 +43,7 @@ impl Default for Buffer {
 }
 
 impl BodyBuffer for Buffer {
-    fn write(&mut self, data: Vec<u8>) {
+    fn write(&mut self, data: &[u8]) {
         match self {
             Self::Bytes(b) => b.write(data),
             Self::Lines(b) => b.write(data),
@@ -90,8 +90,8 @@ pub struct Bytes {
 }
 
 impl BodyBuffer for Bytes {
-    fn write(&mut self, data: Vec<u8>) {
-        self.buffer.extend(data);
+    fn write(&mut self, data: &[u8]) {
+        self.buffer.extend_from_slice(data);
     }
 
     fn decode<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
@@ -120,8 +120,8 @@ pub struct Lines {
 }
 
 impl BodyBuffer for Lines {
-    fn write(&mut self, data: Vec<u8>) {
-        self.buffer.extend(data);
+    fn write(&mut self, data: &[u8]) {
+        self.buffer.extend(data.iter().copied());
     }
 
     fn decode<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
@@ -171,8 +171,8 @@ pub struct Json {
 }
 
 impl BodyBuffer for Json {
-    fn write(&mut self, data: Vec<u8>) {
-        self.buffer.extend(data);
+    fn write(&mut self, data: &[u8]) {
+        self.buffer.extend_from_slice(data);
     }
 
     fn decode<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
@@ -188,6 +188,7 @@ impl BodyBuffer for Json {
         })?;
         let obj = json_to_python(py, buf)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyTypeError, _>(e.to_string()))?;
+        self.buffer.clear();
         Ok(Some(obj))
     }
 
@@ -207,8 +208,8 @@ pub struct Text {
 }
 
 impl BodyBuffer for Text {
-    fn write(&mut self, data: Vec<u8>) {
-        self.buffer.extend(data);
+    fn write(&mut self, data: &[u8]) {
+        self.buffer.extend_from_slice(data);
     }
 
     fn decode<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
@@ -255,8 +256,8 @@ impl Default for ServerSentEvent {
 }
 
 impl BodyBuffer for ServerSentEvent {
-    fn write(&mut self, data: Vec<u8>) {
-        self.buffer.extend(data);
+    fn write(&mut self, data: &[u8]) {
+        self.buffer.extend(data.iter().copied());
     }
 
     fn decode<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {

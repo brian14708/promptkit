@@ -210,7 +210,11 @@ pub mod http_module {
         let read_size = if size < 0 {
             slf.body.len().saturating_sub(slf.cursor)
         } else {
-            usize::try_from(size).expect("size is too large")
+            usize::try_from(size).map_err(|_| {
+                PyErr::new::<pyo3::exceptions::PyOverflowError, _>(
+                    "read size is too large for this platform",
+                )
+            })?
         };
         // A zero-length read makes no progress. Report completion immediately so
         // callers that loop until `None` (e.g. `blocking_read`, `_aread`) don't
@@ -221,7 +225,7 @@ pub mod http_module {
         }
         let end = slf.cursor.saturating_add(read_size).min(slf.body.len());
         if slf.cursor < end {
-            buf.write(slf.body[slf.cursor..end].to_vec());
+            buf.write(&slf.body[slf.cursor..end]);
             slf.cursor = end;
         }
         if slf.cursor >= slf.body.len() {

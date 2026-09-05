@@ -24,6 +24,8 @@ craneLib.buildPackage {
   inherit src;
   strictDeps = true;
 
+  CARGO_INCREMENTAL = "0";
+
   CARGO_PROFILE = "release";
   cargoExtraArgs = "-p isola-c-api-export";
   installPhase = ''

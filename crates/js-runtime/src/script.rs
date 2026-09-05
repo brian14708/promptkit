@@ -127,6 +127,36 @@ impl Scope {
         )));
 
         let context = Context::full(&runtime).expect("failed to create QuickJS context");
+        context.with(|ctx| {
+            let globals = ctx.globals();
+            // Compile boundary helpers once per QuickJS context. These are used
+            // for every generator result and compiling them in the loop is costly.
+            globals
+                .set(
+                    "__isola_async_iterator",
+                    ctx.eval::<Function<'_>, _>(
+                        "(function(o) { return typeof o[Symbol.asyncIterator] === 'function' ? o[Symbol.asyncIterator]() : null; })",
+                    )
+                    .expect("failed to initialize async iterator helper"),
+                )
+                .expect("failed to install async iterator helper");
+            globals
+                .set(
+                    "__isola_iterator",
+                    ctx.eval::<Function<'_>, _>(
+                        "(function(o) { return typeof o[Symbol.iterator] === 'function' ? o[Symbol.iterator]() : null; })",
+                    )
+                    .expect("failed to initialize iterator helper"),
+                )
+                .expect("failed to install iterator helper");
+            globals
+                .set(
+                    "__isola_next",
+                    ctx.eval::<Function<'_>, _>("(function(g) { return g.next(); })")
+                        .expect("failed to initialize next helper"),
+                )
+                .expect("failed to install next helper");
+        });
 
         Self {
             runtime,
@@ -355,9 +385,8 @@ impl Scope {
         // generator check, because async generators also have .next() but
         // return Promises.
         if let Some(gen_obj) = obj.as_object() {
-            let check_async_iter: std::result::Result<Function<'_>, _> = ctx.eval(
-                "(function(o) { return typeof o[Symbol.asyncIterator] === 'function' ? o[Symbol.asyncIterator]() : null; })",
-            );
+            let check_async_iter: std::result::Result<Function<'_>, _> =
+                ctx.globals().get("__isola_async_iterator");
             if let Ok(check_fn) = check_async_iter
                 && let Ok(iter) = check_fn.call::<_, Value<'_>>((gen_obj.clone(),))
                 && iter.is_object()
@@ -373,7 +402,8 @@ impl Scope {
         {
             // Use a JS helper to call next() with proper `this` binding
             let call_next: Function<'_> = ctx
-                .eval("(function(g) { return g.next(); })")
+                .globals()
+                .get("__isola_next")
                 .map_err(|_| Error::from_js_catch(ctx))?;
 
             // It's a generator - iterate it
@@ -419,15 +449,16 @@ impl Scope {
 
         // Try Symbol.iterator
         if let Some(iter_obj) = obj.as_object() {
-            let get_iter: std::result::Result<Function<'_>, _> = ctx
-                .eval("(function(o) { return typeof o[Symbol.iterator] === 'function' ? o[Symbol.iterator]() : null; })");
+            let get_iter: std::result::Result<Function<'_>, _> =
+                ctx.globals().get("__isola_iterator");
             if let Ok(get_iter) = get_iter
                 && let Ok(iter) = get_iter.call::<_, Value<'_>>((iter_obj.clone(),))
                 && let Some(iter_val) = iter.as_object()
                 && iter_val.get::<_, Function<'_>>("next").is_ok()
             {
                 let call_next: Function<'_> = ctx
-                    .eval("(function(g) { return g.next(); })")
+                    .globals()
+                    .get("__isola_next")
                     .map_err(|_| Error::from_js_catch(ctx))?;
                 loop {
                     let iter_result: Object<'_> = call_next
@@ -465,7 +496,8 @@ impl Scope {
         callback: &mut impl FnMut(EmitType, &[u8]),
     ) -> Result<()> {
         let call_next: Function<'_> = ctx
-            .eval("(function(g) { return g.next(); })")
+            .globals()
+            .get("__isola_next")
             .map_err(|_| Error::from_js_catch(ctx))?;
 
         loop {

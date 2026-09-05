@@ -208,11 +208,13 @@ fn parse_mounts(mounts: Vec<MountConfigInput>) -> Result<Vec<ConfiguredMount>> {
 }
 
 fn dedupe_mounts_by_guest(mounts: Vec<ConfiguredMount>) -> Vec<ConfiguredMount> {
-    let mut deduped: Vec<ConfiguredMount> = Vec::new();
+    let mut deduped = Vec::with_capacity(mounts.len());
+    let mut indices = std::collections::HashMap::with_capacity(mounts.len());
     for mount in mounts {
-        if let Some(existing) = deduped.iter_mut().find(|m| m.guest == mount.guest) {
-            *existing = mount;
+        if let Some(&index) = indices.get(&mount.guest) {
+            deduped[index] = mount;
         } else {
+            indices.insert(mount.guest.clone(), deduped.len());
             deduped.push(mount);
         }
     }

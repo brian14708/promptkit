@@ -25,7 +25,7 @@ type CallbackTsfn = Arc<
     ThreadsafeFunction<(String, Option<String>), (), (String, Option<String>), napi::Status, false>,
 >;
 type HttpHandlerFunction<'env> =
-    Function<'env, (String, String, String, Option<Buffer>), Promise<crate::env::JsHttpResponse>>;
+    Function<'env, (String, String, Buffer, Option<Buffer>), Promise<crate::env::JsHttpResponse>>;
 
 // ---------------------------------------------------------------------------
 // RunResult
@@ -100,18 +100,28 @@ impl OutputCollector {
         f(&mut data);
     }
 
-    fn emit(&self, event: CallbackEvent, payload: Option<&str>) {
+    fn emit(&self, event: CallbackEvent, payload: Option<&str>) -> bool {
         if let Some(tsfn) = &self.callback {
-            tsfn.call(
+            return tsfn.call(
                 (event.as_str().to_owned(), payload.map(str::to_owned)),
                 ThreadsafeFunctionCallMode::NonBlocking,
-            );
+            ) == napi::Status::Ok;
         }
+        true
     }
 
     fn emit_error_message(&self, message: &str) {
         self.record(|data| data.errors.push(message.to_owned()));
-        self.emit(CallbackEvent::Error, Some(message));
+        let _ = self.emit(CallbackEvent::Error, Some(message));
+    }
+
+    fn emit_or_record_error(&self, event: CallbackEvent, payload: Option<&str>, kind: &str) {
+        if !self.emit(event, payload) {
+            self.record(|data| {
+                data.errors
+                    .push(format!("output callback rejected a {kind} event"));
+            });
+        }
     }
 
     fn into_result(self) -> RunResult {
@@ -139,7 +149,7 @@ impl OutputCollector {
                 let text = item.to_json_str().map_err(|e| -> BoxError {
                     Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
                 })?;
-                self.emit(CallbackEvent::Result, Some(&text));
+                self.emit_or_record_error(CallbackEvent::Result, Some(&text), "result");
                 self.record(|data| data.result_json.push(text));
             }
             OutputEvent::Complete(item) => {
@@ -147,10 +157,10 @@ impl OutputCollector {
                     let text = item.to_json_str().map_err(|e| -> BoxError {
                         Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
                     })?;
-                    self.emit(CallbackEvent::End, Some(&text));
+                    self.emit_or_record_error(CallbackEvent::End, Some(&text), "end");
                     self.record(|data| data.final_json = Some(text));
                 } else {
-                    self.emit(CallbackEvent::End, None);
+                    self.emit_or_record_error(CallbackEvent::End, None, "end");
                 }
             }
             OutputEvent::Log { level, message, .. } => {
@@ -159,7 +169,7 @@ impl OutputCollector {
                     LogLevel::Stderr => CallbackEvent::Stderr,
                     _ => CallbackEvent::Log,
                 };
-                self.emit(callback_event, Some(&message));
+                self.emit_or_record_error(callback_event, Some(&message), "log");
                 self.record(|data| match level {
                     LogLevel::Stdout => data.stdout.push(message),
                     LogLevel::Stderr => data.stderr.push(message),
@@ -423,14 +433,19 @@ impl SandboxCore {
         }
     }
 
-    /// Set the hostcall handler: (callType: string, payloadJson: string) =>
-    /// Promise<string>
+    /// Set the hostcall handler: (callType: string, payload: Buffer) =>
+    /// Promise<Buffer>
     #[napi(
-        ts_args_type = "handler: ((callType: string, payloadJson: string) => Promise<string>) | null"
+        ts_args_type = "handler: ((callType: string, payload: Buffer) => Promise<Buffer>) | null"
     )]
     pub fn set_hostcall_handler(
         &self,
-        handler: Option<Function<(String, String), Promise<String>>>,
+        handler: Option<
+            Function<
+                (String, napi::bindgen_prelude::Buffer),
+                Promise<napi::bindgen_prelude::Buffer>,
+            >,
+        >,
     ) -> napi::Result<()> {
         let js_handler = handler
             .map(|cb| {
@@ -457,10 +472,10 @@ impl SandboxCore {
         }
     }
 
-    /// Set the HTTP handler: (method, url, headersJson, body) =>
+    /// Set the HTTP handler: (method, url, headers, body) =>
     /// Promise<response>
     #[napi(
-        ts_args_type = "handler: ((method: string, url: string, headersJson: string, body: Buffer | null) => Promise<{ status: number; headers?: Record<string, string>; body?: Buffer | null }>) | null"
+        ts_args_type = "handler: ((method: string, url: string, headers: Buffer, body: Buffer | null) => Promise<{ status: number; headers?: Record<string, string>; body?: Buffer | null }>) | null"
     )]
     pub fn set_http_handler(&self, handler: Option<HttpHandlerFunction<'_>>) -> napi::Result<()> {
         let js_handler = handler

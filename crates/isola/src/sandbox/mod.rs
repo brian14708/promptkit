@@ -253,22 +253,28 @@ impl SandboxOptions {
             merged.max_memory = Some(max_memory);
         }
 
+        let mut mount_indices =
+            std::collections::HashMap::with_capacity(merged.directory_mappings.len());
+        for (index, mapping) in merged.directory_mappings.iter().enumerate() {
+            mount_indices.insert(mapping.guest.clone(), index);
+        }
         for mapping in overrides.directory_mappings {
-            if let Some(existing) = merged
-                .directory_mappings
-                .iter_mut()
-                .find(|m| m.guest == mapping.guest)
-            {
-                *existing = mapping;
+            if let Some(&index) = mount_indices.get(&mapping.guest) {
+                merged.directory_mappings[index] = mapping;
             } else {
+                mount_indices.insert(mapping.guest.clone(), merged.directory_mappings.len());
                 merged.directory_mappings.push(mapping);
             }
         }
-
+        let mut env_indices = std::collections::HashMap::with_capacity(merged.env.len());
+        for (index, (key, _)) in merged.env.iter().enumerate() {
+            env_indices.insert(key.clone(), index);
+        }
         for (key, value) in overrides.env {
-            if let Some(existing) = merged.env.iter_mut().find(|(k, _)| k == &key) {
-                existing.1 = value;
+            if let Some(&index) = env_indices.get(&key) {
+                merged.env[index].1 = value;
             } else {
+                env_indices.insert(key.clone(), merged.env.len());
                 merged.env.push((key, value));
             }
         }
@@ -562,12 +568,15 @@ impl<H: Host> Sandbox<H> {
     where
         I: IntoIterator<Item = Arg>,
     {
-        let output = Arc::new(Mutex::new(CallOutput::default()));
-        let target = OutputTarget::capture(output.clone());
+        self.store.data_mut().capture_output = Some(CallOutput::default());
+        let target = OutputTarget::capture();
         self.call_impl(function, args, target).await?;
-
-        let mut output = output.lock();
-        Ok(std::mem::take(&mut output))
+        Ok(self
+            .store
+            .data_mut()
+            .capture_output
+            .take()
+            .unwrap_or_default())
     }
 
     async fn call_impl<I>(&mut self, function: &str, args: I, target: OutputTarget) -> Result<()>

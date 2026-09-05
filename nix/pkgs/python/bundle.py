@@ -63,14 +63,15 @@ def write_bytecode(
         cfile=compiled_path,
         dfile=archive_source.as_posix(),
         doraise=True,
-        invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH,
+        # The bundle is immutable; avoid hashing source files at import time.
+        invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH,
     )
     archive_name = archive_source.with_suffix(".pyc").as_posix()
     info = zipfile.ZipInfo(archive_name, date_time=(1980, 1, 1, 0, 0, 0))
     info.compress_type = zipfile.ZIP_DEFLATED
     info.create_system = 3
     info.external_attr = 0o100644 << 16
-    archive.writestr(info, compiled_path.read_bytes(), compresslevel=9)
+    archive.writestr(info, compiled_path.read_bytes(), compresslevel=6)
 
 
 if __name__ == "__main__":
@@ -82,7 +83,7 @@ if __name__ == "__main__":
             pyzip_path,
             "w",
             compression=zipfile.ZIP_DEFLATED,
-            compresslevel=9,
+            compresslevel=6,
             strict_timestamps=False,
         ) as archive,
         tempfile.TemporaryDirectory() as compile_dir,

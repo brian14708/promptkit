@@ -2,9 +2,8 @@ use std::{future::Future, pin::Pin, sync::Arc};
 
 use bytes::Bytes;
 use http_body::Frame;
-use parking_lot::Mutex;
 
-use crate::{sandbox::CallOutput, value::Value};
+use crate::value::Value;
 
 /// Thread-safe error returned by host callbacks and output sinks.
 pub type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -226,7 +225,7 @@ type SyncOutputCallback =
 #[derive(Clone)]
 enum OutputTargetKind {
     Discard,
-    Capture(Arc<Mutex<CallOutput>>),
+    Capture,
     Bounded(tokio::sync::mpsc::Sender<OutputEvent>),
     Unbounded(tokio::sync::mpsc::UnboundedSender<OutputEvent>),
     Sync(Arc<SyncOutputCallback>),
@@ -294,19 +293,19 @@ impl OutputTarget {
         }
     }
 
-    pub(crate) const fn capture(output: Arc<Mutex<CallOutput>>) -> Self {
+    pub(crate) const fn capture() -> Self {
         Self {
-            kind: OutputTargetKind::Capture(output),
+            kind: OutputTargetKind::Capture,
         }
+    }
+
+    pub(crate) const fn is_capture(&self) -> bool {
+        matches!(self.kind, OutputTargetKind::Capture)
     }
 
     pub(crate) async fn on_item(&self, value: Value) -> core::result::Result<(), BoxError> {
         match &self.kind {
-            OutputTargetKind::Discard => Ok(()),
-            OutputTargetKind::Capture(output) => {
-                output.lock().items.push(value);
-                Ok(())
-            }
+            OutputTargetKind::Discard | OutputTargetKind::Capture => Ok(()),
             OutputTargetKind::Bounded(sender) => sender
                 .send(OutputEvent::Item(value))
                 .await
@@ -324,11 +323,7 @@ impl OutputTarget {
         value: Option<Value>,
     ) -> core::result::Result<(), BoxError> {
         match &self.kind {
-            OutputTargetKind::Discard => Ok(()),
-            OutputTargetKind::Capture(output) => {
-                output.lock().result = value;
-                Ok(())
-            }
+            OutputTargetKind::Discard | OutputTargetKind::Capture => Ok(()),
             OutputTargetKind::Bounded(sender) => sender
                 .send(OutputEvent::Complete(value))
                 .await
@@ -348,7 +343,7 @@ impl OutputTarget {
         message: &str,
     ) -> core::result::Result<(), BoxError> {
         match &self.kind {
-            OutputTargetKind::Discard | OutputTargetKind::Capture(_) => Ok(()),
+            OutputTargetKind::Discard | OutputTargetKind::Capture => Ok(()),
             OutputTargetKind::Bounded(sender) => sender
                 .send(output_log_event(level, context, message))
                 .await
@@ -552,15 +547,6 @@ mod tests {
         target.on_item(value()).await.unwrap();
         target.on_complete(None).await.unwrap();
         assert_eq!(event_count.load(Ordering::Relaxed), 2);
-
-        let output = Arc::new(Mutex::new(CallOutput::default()));
-        let target = OutputTarget::capture(Arc::clone(&output));
-        target.on_item(value()).await.unwrap();
-        target.on_complete(Some(value())).await.unwrap();
-        let output = output.lock();
-        assert_eq!(output.items.len(), 1);
-        assert!(output.result.is_some());
-        drop(output);
     }
 
     struct CountingAsyncSink(AtomicUsize);

@@ -1,3 +1,5 @@
 packages:
   - crates/js-sdk/npm
+allowBuilds:
+  cbor-extract: true
 minimumReleaseAge: 0

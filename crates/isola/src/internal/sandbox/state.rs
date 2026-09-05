@@ -35,6 +35,7 @@ pub struct InstanceState<H: Host> {
     http_hooks: InstanceHttpHooks<H>,
 
     output_target: Option<OutputTarget>,
+    pub(crate) capture_output: Option<crate::sandbox::CallOutput>,
     log_target_store: LogTargetStore,
     output_buffer: OutputBuffer,
 }
@@ -59,10 +60,11 @@ async fn collect_outgoing_http_body(
     body: WasiBody,
     max_bytes: usize,
     read_timeout: std::time::Duration,
+    content_length: Option<usize>,
 ) -> Result<Option<Bytes>, HttpError> {
     let mut body = body;
     let bytes = timeout(read_timeout, async {
-        let mut buf = BytesMut::new();
+        let mut buf = BytesMut::with_capacity(content_length.unwrap_or(0).min(max_bytes));
         while let Some(frame) = http_body_util::BodyExt::frame(&mut body).await {
             let frame = frame.map_err(|e| {
                 HttpError::InternalError(Some(format!("request body read error: {e:?}")))
@@ -159,6 +161,7 @@ impl<H: Host> InstanceState<H> {
                 host: Arc::clone(&host),
                 http_hooks: InstanceHttpHooks { host },
                 output_target: None,
+                capture_output: None,
                 log_target_store,
                 output_buffer: OutputBuffer::new(),
             },
@@ -246,9 +249,17 @@ impl<H: Host> WasiHttpHooks for InstanceHttpHooks<H> {
                     .connect_timeout
                     .unwrap_or(MAX_OUTGOING_HTTP_BODY_READ_TIMEOUT)
                     .min(MAX_OUTGOING_HTTP_BODY_READ_TIMEOUT);
-                let body =
-                    collect_outgoing_http_body(body, MAX_OUTGOING_HTTP_BODY_BYTES, body_timeout)
-                        .await?;
+                let content_length = headers
+                    .get(http::header::CONTENT_LENGTH)
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|value| value.parse::<usize>().ok());
+                let body = collect_outgoing_http_body(
+                    body,
+                    MAX_OUTGOING_HTTP_BODY_BYTES,
+                    body_timeout,
+                    content_length,
+                )
+                .await?;
 
                 let mut req = HttpRequest::new(body);
                 *req.method_mut() = parts.method;
@@ -304,17 +315,32 @@ impl<H: Host> HostView for InstanceState<H> {
                 } else {
                     Some(Value::from(output))
                 };
-                target
-                    .on_complete(output)
-                    .await
-                    .map_err(wasmtime::Error::from_boxed)
+                if target.is_capture() {
+                    if let Some(capture) = self.capture_output.as_mut() {
+                        capture.result = output;
+                    }
+                    Ok(())
+                } else {
+                    target
+                        .on_complete(output)
+                        .await
+                        .map_err(wasmtime::Error::from_boxed)
+                }
             }
             EmitValue::PartialResult(new_data) => {
                 let output = self.output_buffer.finish(new_data)?;
-                target
-                    .on_item(Value::from(output))
-                    .await
-                    .map_err(wasmtime::Error::from_boxed)
+                let value = Value::from(output);
+                if target.is_capture() {
+                    if let Some(capture) = self.capture_output.as_mut() {
+                        capture.items.push(value);
+                    }
+                    Ok(())
+                } else {
+                    target
+                        .on_item(value)
+                        .await
+                        .map_err(wasmtime::Error::from_boxed)
+                }
             }
             EmitValue::Abort => {
                 self.output_buffer.reset();
@@ -484,6 +510,7 @@ mod tests {
                 host: Arc::clone(&host),
             },
             output_target: None,
+            capture_output: None,
             log_target_store: Arc::new(Mutex::new(None)),
             output_buffer: OutputBuffer::new(),
         };
@@ -528,7 +555,7 @@ mod tests {
         ]))
         .boxed_unsync();
 
-        let err = collect_outgoing_http_body(body, 4, Duration::from_secs(1))
+        let err = collect_outgoing_http_body(body, 4, Duration::from_secs(1), None)
             .await
             .expect_err("expected cap error");
         assert!(matches!(err, HttpError::HttpRequestBodySize(Some(4))));
@@ -549,6 +576,7 @@ mod tests {
                 host: Arc::clone(&host),
             },
             output_target: None,
+            capture_output: None,
             log_target_store: Arc::new(Mutex::new(None)),
             output_buffer: OutputBuffer::new(),
         };

@@ -1,3 +1,4 @@
+import { decode, encode } from "cbor-x";
 import { resolveRuntime } from "./_runtime.js";
 // @ts-expect-error - napi bindings are generated at build time
 import { ContextCore, type SandboxCore, StreamHandle } from "./isola.js";
@@ -51,8 +52,8 @@ type WireMountConfig = {
   file_perms?: "read" | "write" | "read-write";
 };
 type NativeCallbackArgs = [string, string | null];
-type NativeHostcallArgs = [string, string];
-type NativeHttpArgs = [string, string, string, Buffer | null];
+type NativeHostcallArgs = [string, Buffer];
+type NativeHttpArgs = [string, string, Buffer, Buffer | null];
 type NativeHttpResponse = {
   status: number;
   headers?: Record<string, string>;
@@ -490,19 +491,13 @@ export class Sandbox {
   /** @internal */
   _setHostcalls(hostcalls: Hostcalls): void {
     this._core.setHostcallHandler(
-      async (...raw: unknown[]): Promise<string> => {
-        const [callType, payloadJson] = unpackTuple<NativeHostcallArgs>(raw);
+      async (...raw: unknown[]): Promise<Buffer> => {
+        const [callType, payloadBuffer] = unpackTuple<NativeHostcallArgs>(raw);
         const handler = hostcalls[callType];
         if (!handler) throw new Error(`unsupported hostcall: ${callType}`);
-        const payload = JSON.parse(payloadJson) as JsonValue;
+        const payload = decode(payloadBuffer) as JsonValue;
         const result = await handler(payload);
-        const encoded = JSON.stringify(result);
-        if (encoded === undefined) {
-          throw new TypeError(
-            `hostcall '${callType}' returned a non-JSON value`,
-          );
-        }
-        return encoded;
+        return Buffer.from(encode(result));
       },
     );
   }
@@ -511,9 +506,12 @@ export class Sandbox {
   _setHttpHandler(handler: (req: HttpRequest) => Promise<HttpResponse>): void {
     this._core.setHttpHandler(
       async (...raw: unknown[]): Promise<NativeHttpResponse> => {
-        const [method, url, headersJson, body] =
+        const [method, url, headersBuffer, body] =
           unpackTuple<NativeHttpArgs>(raw);
-        const headers = JSON.parse(headersJson) as Record<string, string>;
+        const headers = JSON.parse(headersBuffer.toString()) as Record<
+          string,
+          string
+        >;
         const req: HttpRequest = { method, url, headers, body };
         const resp = await handler(req);
         return normalizeHttpResponse(resp);

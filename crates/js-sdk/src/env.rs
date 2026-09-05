@@ -33,7 +33,7 @@ pub struct JsHttpResponse {
 // Promise<String>>.build_threadsafe_function().build() Type params: T, Return,
 // CallJsBackArgs, ErrorStatus, CalleeHandled
 type HostcallTsfn =
-    ThreadsafeFunction<(String, String), Promise<String>, (String, String), Status, false>;
+    ThreadsafeFunction<(String, Buffer), Promise<Buffer>, (String, Buffer), Status, false>;
 
 pub struct JsHostcallHandler {
     tsfn: HostcallTsfn,
@@ -49,22 +49,19 @@ impl JsHostcallHandler {
         call_type: &str,
         payload: Value,
     ) -> std::result::Result<Value, BoxError> {
-        let payload_json = payload
-            .to_json_str()
-            .map_err(|e| io_error(format!("failed to encode hostcall payload: {e}")))?;
+        let payload_cbor = payload.into_cbor();
 
         let promise = self
             .tsfn
-            .call_async((call_type.to_owned(), payload_json))
+            .call_async((call_type.to_owned(), Buffer::from(payload_cbor.to_vec())))
             .await
             .map_err(|e| io_error(format!("hostcall JS handler failed: {e}")))?;
 
-        let result_json = promise
+        let result_cbor = promise
             .await
             .map_err(|e| io_error(format!("hostcall JS promise rejected: {e}")))?;
 
-        Value::from_json_str(&result_json)
-            .map_err(|e| io_error(format!("invalid hostcall response JSON: {e}")))
+        Ok(Value::from_cbor(result_cbor.to_vec()))
     }
 }
 
@@ -73,9 +70,9 @@ impl JsHostcallHandler {
 // ---------------------------------------------------------------------------
 
 type HttpTsfn = ThreadsafeFunction<
-    (String, String, String, Option<Buffer>),
+    (String, String, Buffer, Option<Buffer>),
     Promise<JsHttpResponse>,
-    (String, String, String, Option<Buffer>),
+    (String, String, Buffer, Option<Buffer>),
     Status,
     false,
 >;
@@ -112,7 +109,7 @@ impl JsHttpHandler {
 
         let promise = self
             .tsfn
-            .call_async((method, url, headers_json, body))
+            .call_async((method, url, Buffer::from(headers_json.into_bytes()), body))
             .await
             .map_err(|e| io_error(format!("HTTP JS handler failed: {e}")))?;
 

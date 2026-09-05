@@ -84,6 +84,9 @@ let
     ];
 
     env = {
+      # Release artifacts are immutable in Nix; incremental state only adds
+      # work and prevents reuse of the compiler's normal release cache layout.
+      CARGO_INCREMENTAL = "0";
       PYO3_PYTHON = "${wasipkgs.python.host}/bin/python3";
       WASI_PYTHON_DEV = linkerInputs;
       WASI_SDK = wasipkgs.sdk;

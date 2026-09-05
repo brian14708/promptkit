@@ -417,12 +417,14 @@ fn parse_mounts(mounts: Vec<MountConfigInput>) -> Result<Vec<ConfiguredMount>> {
 }
 
 fn dedupe_mounts_by_guest(mounts: Vec<ConfiguredMount>) -> Vec<ConfiguredMount> {
-    let mut deduped: Vec<ConfiguredMount> = Vec::new();
+    let mut deduped = Vec::with_capacity(mounts.len());
+    let mut indices = std::collections::HashMap::with_capacity(mounts.len());
 
     for mount in mounts {
-        if let Some(existing) = deduped.iter_mut().find(|m| m.guest == mount.guest) {
-            *existing = mount;
+        if let Some(&index) = indices.get(&mount.guest) {
+            deduped[index] = mount;
         } else {
+            indices.insert(mount.guest.clone(), deduped.len());
             deduped.push(mount);
         }
     }
@@ -638,7 +640,20 @@ impl PyHttpHandler {
         let (tx, rx) = tokio::sync::mpsc::channel(DEFAULT_HTTP_STREAM_CAPACITY);
         let event_loop = Python::attach(|py| self.event_loop.clone_ref(py));
         let iterator = Arc::new(iterator);
+        let anext = Python::attach(|py| -> PyResult<Py<PyAny>> {
+            py.import("builtins")?
+                .getattr("anext")
+                .map(pyo3::Bound::unbind)
+        })
+        .map_err(|e| py_error_to_box_error("failed to access anext", &e));
         tokio::spawn(async move {
+            let anext = match anext {
+                Ok(anext) => anext,
+                Err(err) => {
+                    let _ = tx.send(Err(err)).await;
+                    return;
+                }
+            };
             loop {
                 if tx.is_closed() {
                     break;
@@ -646,13 +661,7 @@ impl PyHttpHandler {
 
                 let iterator = Arc::clone(&iterator);
                 let next_item = match Python::attach(|py| {
-                    let builtins = py
-                        .import("builtins")
-                        .map_err(|e| py_error_to_box_error("failed to import builtins", &e))?;
-                    let anext = builtins
-                        .getattr("anext")
-                        .map_err(|e| py_error_to_box_error("failed to access anext", &e))?;
-                    let coro = anext.call1((iterator.bind(py),)).map_err(|e| {
+                    let coro = anext.bind(py).call1((iterator.bind(py),)).map_err(|e| {
                         py_error_to_box_error("failed to create anext coroutine", &e)
                     })?;
                     let locals = TaskLocals::new(event_loop.bind(py).clone());

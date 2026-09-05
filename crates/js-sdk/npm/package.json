@@ -2,6 +2,7 @@
   "name": "isola-core",
   "version": "0.5.0",
   "description": "Node.js SDK for Isola sandboxed code execution",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -25,13 +26,13 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
-    "@napi-rs/cli": "^3.6.0",
-    "@types/node": "^25.5.0",
-    "typescript": "^7.0.0",
-    "vitest": "^4.1.2"
+    "@biomejs/biome": "^2.5.12",
+    "@napi-rs/cli": "^3.9.0",
+    "@types/node": "^26.4.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   },
-  "packageManager": "pnpm@11.25.0",
+  "packageManager": "pnpm@12.3.1",
   "publishConfig": {
     "access": "public"
   },
@@ -39,5 +40,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/brian14708/isola"
+  },
+  "dependencies": {
+    "cbor-x": "^1.6.6"
   }
 }
