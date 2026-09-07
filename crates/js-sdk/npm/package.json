@@ -31,7 +31,7 @@
     "typescript": "^7.0.0",
     "vitest": "^4.1.2"
   },
-  "packageManager": "pnpm@11.25.0",
+  "packageManager": "pnpm@12.3.2",
   "publishConfig": {
     "access": "public"
   },
